@@ -127,12 +127,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BloomFilter\BloomFilter.h" />
-    <ClInclude Include="BloomFilter\Hash\xxh3.h" />
-    <ClInclude Include="BloomFilter\Hash\xxhash.h" />
     <ClInclude Include="EventsQueue.h" />
     <ClInclude Include="Event\ConstantNameEvent.h" />
     <ClInclude Include="Event\Deleted.h" />
     <ClInclude Include="Event\Event.h" />
+    <ClInclude Include="Event\FileChanged.h" />
     <ClInclude Include="Event\FileDetected.h" />
     <ClInclude Include="Event\FolderDetected.h" />
     <ClInclude Include="FileWatcher\FileWatcher.h" />
@@ -147,6 +146,7 @@
     <ClCompile Include="BloomFilter\BloomFilter.cpp" />
     <ClCompile Include="Event\Deleted.cpp" />
     <ClCompile Include="Event\Event.cpp" />
+    <ClCompile Include="Event\FileChanged.cpp" />
     <ClCompile Include="Event\FileDetected.cpp" />
     <ClCompile Include="Event\FolderDetected.cpp" />
     <ClCompile Include="FileWatcher\FileWatcher.cpp" />
@@ -160,9 +160,15 @@
     <Image Include="app.ico" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Extensions.Data.xxHash">
+      <HintPath>Extensions.Data.xxHash.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Extensions.Data.xxHash.dll" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

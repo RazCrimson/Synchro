@@ -18,8 +18,9 @@ bool SocketHandler::send(array<Byte>^% data)
 		if (!isValid())
 			return false;
 		client->Send(BitConverter::GetBytes(data->Length));
-		Threading::Thread::Sleep(30);
+		Threading::Thread::Sleep(20);
 		client->Send(data);
+		Threading::Thread::Sleep(10);
 		Console::WriteLine("Sent: {0}", Text::Encoding::Unicode->GetString(data));
 		return true;
 	}

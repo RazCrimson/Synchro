@@ -9,7 +9,7 @@
 using namespace System::Threading;
 
 int main() {
-	
+
 	String^ path = "C:\\Users\\bhara\\Desktop\\test2";
 
 	ClientSocketHandler^ servsoc = gcnew ClientSocketHandler(IPAddress::Parse("127.0.0.1"),64000);
@@ -23,5 +23,4 @@ int main() {
 	Synchronizer^ sync = gcnew Synchronizer(socket, queue, path);
 
 	FileWatcher::run();	
-
 } 

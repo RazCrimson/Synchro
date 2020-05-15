@@ -6,19 +6,19 @@ using namespace System::IO;
 using namespace System::Diagnostics;
 using namespace System::Security::Permissions;
 
-#include "..\Event\FolderDetected.h"
-#include "..\Event\FileDetected.h"
-#include "..\Event\Deleted.h"
+#include "..\Event\Event.h"
 #include "..\EventsQueue.h"
 
 public ref class FileWatcher
 {
 private:
-    static EventsQueue^ eventsQueue;
+    static String^ rootPath; 
+    
+    static Stopwatch^ stopWatch;
 
-    static Stopwatch^ stopWatch;    
+    static EventsQueue^ eventsQueue;   
 
-    static String^ rootPath;
+    static String^ removeRootPath(String^);
     
     // To check if the changes to a file needs to be handled
     static bool FileValidator(String^ fullPath);

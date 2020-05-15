@@ -1,5 +1,11 @@
 #include "Synchronizer.h"
+
 #include "..\FileWatcher\FileWatcher.h"
+
+#include "..\Event\FolderDetected.h"
+#include "..\Event\FileDetected.h"
+#include "..\Event\FileChanged.h"
+#include "..\Event\Deleted.h"
 
 using namespace System::IO;
 using namespace System::Text;
@@ -44,6 +50,10 @@ Event^ Synchronizer::getEventFromString(String^ data, Int64 timeElapsed)
     else if (eventCode == FileDetectedEvent)
     {
         event = gcnew FileDetected(timeElapsed, data);
+    }
+    else if (eventCode == FileChangedEvent)
+    {
+        event = gcnew FileChanged(timeElapsed, data);
     }
     else if (eventCode == DeletedEvent)
     {

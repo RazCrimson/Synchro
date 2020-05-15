@@ -1,7 +1,7 @@
 #include "BloomFilter.h"
-#include "Hash/xxh3.h"
 #include <cmath>
 
+using Extensions::Data::XXHash;
 using namespace System::Collections::Generic;
 using namespace System::Text; 
 using namespace System::IO;
@@ -28,25 +28,21 @@ BloomFilter::BloomFilter(UInt32 numberOfItems)
 
 void BloomFilter::insert(array<Byte>^ line, UInt32 freq)
 {
-	pin_ptr<Byte> pinnedPtr = &line[0];
-	XXH64_hash_t line_hash = XXH64(static_cast<void *>(pinnedPtr), line->Length, freq);
+	Int64 line_hash = XXHash::XXH64(line, freq);
 	array<Byte>^ line_hash_bytes = BitConverter::GetBytes(line_hash);
-	pinnedPtr = &line_hash_bytes[0];
 	for (UInt32 i = 0; i < this->_noOfHashFun; i++)
 	{
-		int index = XXH64(static_cast<void*>(pinnedPtr), line_hash_bytes->Length, i) % this->_size;
+		int index = XXHash::XXH64(line_hash_bytes, i) % this->_size;
 		_setBit(index);
 	}
 }
 
 bool BloomFilter::validate(array<Byte>^ line, UInt32 freq)
 {
-	pin_ptr<Byte> pinnedPtr = &line[0];
-	XXH64_hash_t line_hash = XXH64(static_cast<void*>(pinnedPtr), line->Length, freq);
+	Int64 line_hash = XXHash::XXH64(line, freq);
 	array<Byte>^ line_hash_bytes = BitConverter::GetBytes(line_hash);
-	pinnedPtr = &line_hash_bytes[0];
 	for (UInt32 i = 0; i < this->_noOfHashFun; i++) {
-		int check_at_index = XXH64(static_cast<void*>(pinnedPtr), line_hash_bytes->Length, i) % this->_size;
+		int check_at_index = XXHash::XXH64(line_hash_bytes, i) % this->_size;
 		if (!_getBit(check_at_index))
 			return false;
 	}
@@ -81,7 +77,7 @@ UInt32 BloomFilter::getNumberOfHashFunctions()
 BloomFilter^ BloomFilter::readBloomFilterOfFile(String^ path)
 {
 	array<String^>^ lines = File::ReadAllLines(path);
-	BloomFilter^ bf = gcnew BloomFilter(lines->Length);
+	BloomFilter^ bf = gcnew BloomFilter(lines->Length < 1 ? 1 : lines->Length);
 	IDictionary<String^, UInt32>^ lineMap = gcnew Dictionary<String^, UInt32>();
 	for each (String ^ line in lines)
 	{

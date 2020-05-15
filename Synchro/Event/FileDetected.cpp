@@ -4,6 +4,8 @@
 using namespace System::IO;
 using namespace System::Text;
 
+using Extensions::Data::XXHash;
+
 FileDetected::FileDetected(Int64 timeElapsed, String^ relPath) : Event(FileDetectedEvent, timeElapsed)
 {
 	_relativePath = relPath;
@@ -40,7 +42,9 @@ bool FileDetected::transmitEvent(SocketHandler^ socket)
 		else if (str == "Send Hash")
 		{
 			str = File::ReadAllText(rootPath + _relativePath);
-			byteArray = Encoding::Unicode->GetBytes(str->GetHashCode().ToString());
+			byteArray = Encoding::Unicode->GetBytes(str);
+			Int64 hash = XXHash::XXH64(byteArray);
+			byteArray = BitConverter::GetBytes(hash);
 		}
 		else
 		{
@@ -107,21 +111,14 @@ bool FileDetected::handleEvent(SocketHandler^ socket)
 			socket->send(byteArray);
 
 			str = File::ReadAllText(rootPath + _relativePath);
-			array<Byte>^ localCopy = Encoding::Unicode->GetBytes(str->GetHashCode().ToString());
+			byteArray = Encoding::Unicode->GetBytes(str);
+			Int64 myHash = XXHash::XXH64(byteArray);
 
 			byteArray = socket->receive();
+			Int64 otherHash = BitConverter::ToInt64(byteArray, 0);
 
-			if (byteArray->Length == localCopy->Length)
-			{
-				UInt16 i;
-				for (i = 0; i < byteArray->Length; i++)
-				{
-					if (byteArray[i] != localCopy[i])
-						break;
-				}
-				if (i == byteArray->Length)
-					completeOverwriteFlag = false;
-			}
+			if ( myHash != otherHash)
+				completeOverwriteFlag = true;
 		}
 
 	}

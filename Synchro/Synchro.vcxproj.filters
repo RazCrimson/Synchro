@@ -38,12 +38,6 @@
     <ClInclude Include="BloomFilter\BloomFilter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BloomFilter\Hash\xxh3.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="BloomFilter\Hash\xxhash.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Event\Event.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -63,6 +57,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EventsQueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Event\FileChanged.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -103,10 +100,16 @@
     <ClCompile Include="Synchronizer\Synchronizer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Event\FileChanged.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="app.ico">
       <Filter>Resource Files</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Extensions.Data.xxHash.dll" />
   </ItemGroup>
 </Project>

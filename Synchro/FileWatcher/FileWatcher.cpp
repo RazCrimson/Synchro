@@ -1,5 +1,17 @@
 #include "FileWatcher.h"
 
+#include "..\Event\FolderDetected.h"
+#include "..\Event\FileDetected.h"
+#include "..\Event\FileChanged.h"
+#include "..\Event\Deleted.h"
+
+String^ FileWatcher::removeRootPath(String^ path)
+{
+    Int32 index = path->IndexOf(rootPath, StringComparison::Ordinal);
+    path = (index < 0) ? path : path->Remove(index, rootPath->Length);
+    return path;
+}
+
 bool FileWatcher::FileValidator(String^ fullPath)
 {
     // Check if file exists
@@ -8,8 +20,7 @@ bool FileWatcher::FileValidator(String^ fullPath)
         FileInfo^ file = gcnew FileInfo(fullPath);
 
         String^ path = gcnew String(fullPath);
-        int index = path->IndexOf(rootPath, StringComparison::Ordinal);
-        path = (index < 0) ? path : path->Remove(index, rootPath->Length);
+        path = removeRootPath(path);
 
         // Check if the file path and size is valid.
         if (file->Length > 5242880 || path->IndexOf("\\.") >= 0)
@@ -26,8 +37,8 @@ bool FileWatcher::FolderValidator(String^ fullPath)
     if (Directory::Exists(fullPath))
     {
         String^ path = gcnew String(fullPath);
-        int index = path->IndexOf(rootPath, StringComparison::Ordinal);
-        path = (index < 0) ? path : path->Remove(index, rootPath->Length);
+        path = removeRootPath(path); 
+
         // Check if the folder path is valid.
         if (path->IndexOf("\\.") >= 0)
             return false;
@@ -37,27 +48,27 @@ bool FileWatcher::FolderValidator(String^ fullPath)
     return false;
 }
 
-void FileWatcher::enqueueFileDetected(String^ fullPath, Int64 timeElapsed)
+void FileWatcher::enqueueFileDetected(String^ path, Int64 timeElapsed)
 {
-    if (FileWatcher::FileValidator(fullPath))
+    if (FileWatcher::FileValidator(path))
     {
-        Console::WriteLine("File: {0} Detected", fullPath);
-        int index = fullPath->IndexOf(rootPath, StringComparison::Ordinal);
-        fullPath = (index < 0) ? fullPath : fullPath->Remove(index, rootPath->Length);
-        Event^ event = gcnew FileDetected(timeElapsed, fullPath);
-        eventsQueue->rateLimitedEnqueue(event, 500000);
+        Console::WriteLine("File: {0} Detected", path);
+        path = removeRootPath(path);
+
+        Event^ event = gcnew FileDetected(timeElapsed, path);
+        eventsQueue->rateLimitedEnqueue(event, 1000);
     }
 }
 
-void FileWatcher::enqueueFolderDetected(String^ fullPath, Int64 timeElapsed)
+void FileWatcher::enqueueFolderDetected(String^ path, Int64 timeElapsed)
 {
-    if (FileWatcher::FolderValidator(fullPath)) // make a directory validator
+    if (FileWatcher::FolderValidator(path)) 
     {
-        Console::WriteLine("Folder: {0} Detected", fullPath);
-        int index = fullPath->IndexOf(rootPath, StringComparison::Ordinal);
-        fullPath = (index < 0) ? fullPath : fullPath->Remove(index, rootPath->Length);
-        Event^ event = gcnew FolderDetected(timeElapsed, fullPath);
-        eventsQueue->rateLimitedEnqueue(event, 500000);
+        Console::WriteLine("Folder: {0} Detected", path);
+        path = removeRootPath(path);
+
+        Event^ event = gcnew FolderDetected(timeElapsed, path);
+        eventsQueue->rateLimitedEnqueue(event, 5000);
     }
 }
 
@@ -97,14 +108,14 @@ void FileWatcher::OnCreated(Object^, FileSystemEventArgs^ e)
 
 void FileWatcher::OnDeleted(Object^, FileSystemEventArgs^ e)
 {
+    String^ path = e->FullPath;
     try {
         // Handle the deletion of a file or a folder (both are treated similarly)
-        Console::WriteLine("File/Folder: {0} Deleted", e->FullPath);
+        Console::WriteLine("File/Folder: {0} Deleted", path);
         String^ path = e->FullPath;
-        int index = path->IndexOf(rootPath, StringComparison::Ordinal);
-        path = (index < 0) ? path : path->Remove(index, rootPath->Length);
+        
         Event^ event = gcnew Deleted(stopWatch->ElapsedMilliseconds, path);
-        eventsQueue->rateLimitedEnqueue(event, 500000);
+        eventsQueue->rateLimitedEnqueue(event, 1000);
     }
     catch (...)
     {
@@ -116,13 +127,16 @@ void FileWatcher::OnChanged(Object^, FileSystemEventArgs^ e)
 {
     try {
         // Handle the change of file contents 
-        String^ fullPath = e->FullPath;
-        if (FileWatcher::FileValidator(fullPath))
+        String^ path = e->FullPath;
+        if (FileWatcher::FileValidator(path))
         {
-            Console::WriteLine("File: {0} Changed", e->FullPath);
-            // add the event creation and queue appending here
+            Console::WriteLine("File: {0} Changed", path);
+            path = removeRootPath(path);
+
+            Event^ event = gcnew FileChanged(stopWatch->ElapsedMilliseconds, path);
+            eventsQueue->rateLimitedEnqueue(event, 1000);
         }
-        // Folders and Files more than 1MB are ignored
+        // Files more than 1MB are ignored
     }
     catch (...)
     {
