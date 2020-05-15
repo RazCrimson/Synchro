@@ -1,4 +1,5 @@
 #include "BloomFilter.h"
+
 #include <cmath>
 
 using Extensions::Data::XXHash;

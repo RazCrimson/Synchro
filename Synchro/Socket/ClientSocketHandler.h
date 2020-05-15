@@ -1,5 +1,7 @@
 #pragma once
+
 #include "SocketHandler.h"
+
 using namespace System::Net;
 
 ref class ClientSocketHandler :	public SocketHandler

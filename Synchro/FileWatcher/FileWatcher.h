@@ -1,48 +1,52 @@
 #pragma once
-#using <System.dll>
 
 using namespace System;
 using namespace System::IO;
-using namespace System::Diagnostics;
+using System::Diagnostics::Stopwatch;
 using namespace System::Security::Permissions;
 
-#include "..\Event\Event.h"
 #include "..\EventsQueue.h"
 
-public ref class FileWatcher
+private ref class EventInitiator : public FileSystemWatcher
 {
 private:
-    static String^ rootPath; 
+    Stopwatch^ _stopWatch;
+
+    EventsQueue^ _eventsQueue; 
+
+    String^ removeWatchItemPath(String^);
     
-    static Stopwatch^ stopWatch;
-
-    static EventsQueue^ eventsQueue;   
-
-    static String^ removeRootPath(String^);
-    
-    // To check if the changes to a file needs to be handled
-    static bool FileValidator(String^ fullPath);
-
-    static bool FolderValidator(String^ fullPath);
-
     // Define the event handlers.
-    static void OnCreated(Object^, FileSystemEventArgs^);
+    static void OnFileOrFolderCreated(Object^, FileSystemEventArgs^);
 
-    static void OnDeleted(Object^, FileSystemEventArgs^);
+    static void OnFileOrFolderDeleted(Object^, FileSystemEventArgs^);
 
-    static void OnChanged(Object^, FileSystemEventArgs^);
+    static void OnFileOrFolderChanged(Object^, FileSystemEventArgs^);
 
-    static void OnRenamed(Object^, RenamedEventArgs^ );
+    static void OnFileOrFolderRenamed(Object^, RenamedEventArgs^);
+    
+    // To check if the changes to a file/folder needs to be handled
+    bool FileValidator(String^ fullPath);
+
+    bool FolderValidator(String^ fullPath);
+
+    // Enqueue 
+    void enqueueFileDetected(String^ fullPath);
+
+    void enqueueFileChanged(String^ fullPath);
+    
+    void enqueueFolderDetected(String^ fullPath);    
+
+    void enqueueFileOrFolderDeleted(String^ fullPath);
 
 
 public:
-    static void initialize(String^ path, EventsQueue^ queue);
 
+    explicit EventInitiator(String^ path, EventsQueue^ queue, Stopwatch^ watch);
+
+    void addAllItemsToQueue();
+    
     [PermissionSet(SecurityAction::Demand, Name = "FullTrust")]
-    static void run();
-
-    static void enqueueFileDetected(String^ fullPath, Int64 timeElapsed);
-
-    static void enqueueFolderDetected(String^ fullPath, Int64 timeElapsed);
+    void setActive(Boolean);   
 
 };

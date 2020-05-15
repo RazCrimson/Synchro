@@ -13,7 +13,7 @@ FileDetected::FileDetected(Int64 timeElapsed, String^ relPath) : Event(FileDetec
 
 bool FileDetected::transmitEvent(SocketHandler^ socket)
 {
-	FileInfo^ file = gcnew FileInfo(rootPath + _relativePath);
+	FileInfo^ file = gcnew FileInfo(_rootWatchPath + _relativePath);
 	if (!file->Exists)
 		return false;
 	// Transmitting the event
@@ -27,31 +27,35 @@ bool FileDetected::transmitEvent(SocketHandler^ socket)
 
 	while (str != "End")
 	{
-		if (str == "Send Length")
-			byteArray = Encoding::Unicode->GetBytes(file->Length.ToString());
-		else if (str == "Send Contents")
-			byteArray = File::ReadAllBytes(rootPath + _relativePath);
-		else if (str == "Send BloomFilter")
+		if (str == "Send Length") 
 		{
-			BloomFilter^ bf = BloomFilter::readBloomFilterOfFile(rootPath + _relativePath);
-			str = bf->getNFromSize(bf->getSize()).ToString();
-			byteArray = Encoding::Unicode->GetBytes(str);
+			Console::WriteLine("Sending length for {0}", getEventText()); 
+			byteArray = Encoding::Unicode->GetBytes(file->Length.ToString());
 			socket->send(byteArray);
-			byteArray = bf->getBloomFilter();
+		}
+		else if (str == "Send Contents")
+		{
+			Console::WriteLine("Sending Contents for {0}", getEventText());
+			byteArray = File::ReadAllBytes(_rootWatchPath + _relativePath);
+			socket->send(byteArray);
 		}
 		else if (str == "Send Hash")
 		{
-			str = File::ReadAllText(rootPath + _relativePath);
-			byteArray = Encoding::Unicode->GetBytes(str);
-			Int64 hash = XXHash::XXH64(byteArray);
-			byteArray = BitConverter::GetBytes(hash);
+			for(UInt16 i = 0; i < 4; i++)
+			{
+				Console::WriteLine("Sending Hash - {0} for {1}", i + 1, getEventText());
+				str = File::ReadAllText(_rootWatchPath + _relativePath);
+				byteArray = Encoding::Unicode->GetBytes(str);
+				Int64 hash = XXHash::XXH64(byteArray, i);
+				byteArray = BitConverter::GetBytes(hash);
+				socket->send(byteArray);
+			}
 		}
 		else
 		{
 			return false;
 		}
-		socket->send(byteArray);
-
+		
 		// Waiting for a response
 		byteArray = socket->receive();
 		str = Encoding::Unicode->GetString(byteArray);
@@ -61,10 +65,11 @@ bool FileDetected::transmitEvent(SocketHandler^ socket)
 
 bool FileDetected::handleEvent(SocketHandler^ socket)
 {
-	String^ fullPath = rootPath + _relativePath;
+	String^ fullPath = _rootWatchPath + _relativePath;
 	bool completeOverwriteFlag = true;
 
 	// Asking for the size of the file
+	Console::WriteLine("Requesting length for {0}", getEventText());
 	array<Byte>^ byteArray = Encoding::Unicode->GetBytes("Send Length");
 	socket->send(byteArray);
 
@@ -89,35 +94,22 @@ bool FileDetected::handleEvent(SocketHandler^ socket)
 	}
 	else if (File::Exists(fullPath))
 	{
-		// Asking for the BF
-		byteArray = Encoding::Unicode->GetBytes("Send BloomFilter");
+		Console::WriteLine("Requesting Hash for {0}", getEventText());
+		byteArray = Encoding::Unicode->GetBytes("Send Hash");
 		socket->send(byteArray);
 
-		// Receiving size of the BF
-		byteArray = socket->receive();
-		str = Encoding::Unicode->GetString(byteArray);
-		UInt32 bfSize = UInt32::Parse(str);
-
-		BloomFilter^ bf = gcnew BloomFilter(bfSize);
-
-		array<Byte>^ bloomFilter = socket->receive();
-		bf->readBloomFilterFromBytes(bloomFilter);
-
-		array<String^>^ lines = File::ReadAllLines(fullPath);
-		if (bf->checkIfPresent(lines))
+		for (UInt16 i = 0; i < 4; i++)
 		{
-
-			byteArray = Encoding::Unicode->GetBytes("Send Hash");
-			socket->send(byteArray);
-
-			str = File::ReadAllText(rootPath + _relativePath);
+			
+			str = File::ReadAllText(_rootWatchPath + _relativePath);
 			byteArray = Encoding::Unicode->GetBytes(str);
-			Int64 myHash = XXHash::XXH64(byteArray);
+			Int64 myHash = XXHash::XXH64(byteArray, i);
 
 			byteArray = socket->receive();
 			Int64 otherHash = BitConverter::ToInt64(byteArray, 0);
+			Console::WriteLine("Received Hash - {0} for {1}", i + 1, getEventText());
 
-			if ( myHash != otherHash)
+			if (myHash != otherHash)
 				completeOverwriteFlag = true;
 		}
 
@@ -125,11 +117,14 @@ bool FileDetected::handleEvent(SocketHandler^ socket)
 
 	if (completeOverwriteFlag)
 	{
+		Console::WriteLine("Requesting File Contents for {0}", getEventText());
 		byteArray = Encoding::Unicode->GetBytes("Send Contents");
 		socket->send(byteArray);
 
 		array<Byte>^ fileContents = socket->receive();
+		Console::WriteLine("Received File Contents");
 		File::WriteAllBytes(fullPath, fileContents);
+		Console::WriteLine("Updated File Contents for {0}", getEventText());
 	}
 
 	byteArray = Encoding::Unicode->GetBytes("End");
@@ -162,4 +157,9 @@ bool FileDetected::Equals(Object^ obj)
 			return false;
 		}
 	}	
+}
+
+String^ FileDetected::getEventText()
+{
+	return gcnew String("File Detected Event at " + _relativePath);
 }

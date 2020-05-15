@@ -1,4 +1,5 @@
 #pragma once
+
 #include "Event.h"
 
 public ref class FileDetected : public Event 
@@ -15,5 +16,7 @@ public:
 	bool handleEvent(SocketHandler^ socket) override;
 
     bool Equals(Object^ obj) override;
+
+	String^ getEventText() override;
     
 };

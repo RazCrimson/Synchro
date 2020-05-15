@@ -1,20 +1,28 @@
 #pragma once
-#include "..\Event\Event.h"
+
 #include "..\Socket\SocketHandler.h"
+#include "..\FileWatcher\FileWatcher.h"
+#include "..\Event\Event.h"
 #include "..\EventsQueue.h"
 
 public ref class Synchronizer 
 {
 private:
 	String^ _rootPath;
-	SocketHandler^ _socket;
+
+	Boolean _isServer;
+
+	Stopwatch^ _stopWatch;
+	
+	SocketHandler^ _socket;	
+
 	EventsQueue^ _eventsQueue;
+
+	EventInitiator^ _eventInitiator;
 
 public:
 
-	explicit Synchronizer(SocketHandler^ socketPtr, EventsQueue^ queue, String^ rootPath);
-
-	void addAllToQueue(Int64 timeElaspsed);
+	explicit Synchronizer(SocketHandler^ socketPtr, String^ _rootWatchPath, Boolean isServer);
 
 	Event^ getEventFromString(String^ data, Int64 timeElapsed);
 

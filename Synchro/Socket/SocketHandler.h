@@ -4,6 +4,7 @@ using namespace System;
 using namespace System::Net;
 using namespace System::Net::Sockets;
 
+
 public ref class SocketHandler abstract
 {
 protected:
@@ -12,7 +13,7 @@ protected:
 	IPAddress^ address;
 
 	UInt16 port;
-	
+
 	Socket^ client;
 
 public:
@@ -25,4 +26,3 @@ public:
 
 	array<Byte>^ receive();
 };
-

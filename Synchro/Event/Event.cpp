@@ -8,7 +8,7 @@ Event::Event(EventType eventCode, Int64 timeElapsed)
 
 void Event::setRootPath(String^ path)
 {
-	rootPath = path;
+	_rootWatchPath = path;
 }
 
 EventType Event::getEventCode()

@@ -44,13 +44,7 @@
     <ClInclude Include="Event\FolderDetected.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Event\Deleted.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Event\FileDetected.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Event\ConstantNameEvent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Synchronizer\Synchronizer.h">
@@ -60,6 +54,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Event\FileChanged.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Event\DeleteItem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Downloads\CLI11.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -91,9 +91,6 @@
     <ClCompile Include="Event\FolderDetected.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Event\Deleted.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Event\FileDetected.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -101,6 +98,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Event\FileChanged.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Event\DeleteItem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

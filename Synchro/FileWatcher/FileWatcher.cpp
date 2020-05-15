@@ -3,16 +3,16 @@
 #include "..\Event\FolderDetected.h"
 #include "..\Event\FileDetected.h"
 #include "..\Event\FileChanged.h"
-#include "..\Event\Deleted.h"
+#include "..\Event\DeleteItem.h"
 
-String^ FileWatcher::removeRootPath(String^ path)
+String^ EventInitiator::removeWatchItemPath(String^ path)
 {
-    Int32 index = path->IndexOf(rootPath, StringComparison::Ordinal);
-    path = (index < 0) ? path : path->Remove(index, rootPath->Length);
+    Int32 index = path->IndexOf(Path, StringComparison::Ordinal);
+    path = (index < 0) ? path : path->Remove(index, Path->Length);
     return path;
 }
 
-bool FileWatcher::FileValidator(String^ fullPath)
+bool EventInitiator::FileValidator(String^ fullPath)
 {
     // Check if file exists
     if (File::Exists(fullPath))
@@ -20,7 +20,7 @@ bool FileWatcher::FileValidator(String^ fullPath)
         FileInfo^ file = gcnew FileInfo(fullPath);
 
         String^ path = gcnew String(fullPath);
-        path = removeRootPath(path);
+        path = removeWatchItemPath(path);
 
         // Check if the file path and size is valid.
         if (file->Length > 5242880 || path->IndexOf("\\.") >= 0)
@@ -31,13 +31,13 @@ bool FileWatcher::FileValidator(String^ fullPath)
     return false;
 }
 
-bool FileWatcher::FolderValidator(String^ fullPath)
+bool EventInitiator::FolderValidator(String^ fullPath)
 {
     // Check if file exists
     if (Directory::Exists(fullPath))
     {
         String^ path = gcnew String(fullPath);
-        path = removeRootPath(path); 
+        path = removeWatchItemPath(path); 
 
         // Check if the folder path is valid.
         if (path->IndexOf("\\.") >= 0)
@@ -48,103 +48,88 @@ bool FileWatcher::FolderValidator(String^ fullPath)
     return false;
 }
 
-void FileWatcher::enqueueFileDetected(String^ path, Int64 timeElapsed)
+void EventInitiator::enqueueFileDetected(String^ path)
 {
-    if (FileWatcher::FileValidator(path))
+    if (EventInitiator::FileValidator(path))
     {
-        Console::WriteLine("File: {0} Detected", path);
-        path = removeRootPath(path);
+        path = removeWatchItemPath(path);
 
-        Event^ event = gcnew FileDetected(timeElapsed, path);
-        eventsQueue->rateLimitedEnqueue(event, 1000);
+        Event^ event = gcnew FileDetected(_stopWatch->ElapsedMilliseconds, path);
+        _eventsQueue->rateLimitedEnqueue(event, 1000);
     }
 }
 
-void FileWatcher::enqueueFolderDetected(String^ path, Int64 timeElapsed)
+void EventInitiator::enqueueFolderDetected(String^ path)
 {
-    if (FileWatcher::FolderValidator(path)) 
+    if (EventInitiator::FolderValidator(path)) 
     {
-        Console::WriteLine("Folder: {0} Detected", path);
-        path = removeRootPath(path);
+        path = removeWatchItemPath(path);
 
-        Event^ event = gcnew FolderDetected(timeElapsed, path);
-        eventsQueue->rateLimitedEnqueue(event, 5000);
+        Event^ event = gcnew FolderDetected(_stopWatch->ElapsedMilliseconds, path);
+        _eventsQueue->rateLimitedEnqueue(event, 5000);
     }
 }
 
-void FileWatcher::OnCreated(Object^, FileSystemEventArgs^ e)
+void EventInitiator::enqueueFileChanged(String^ path)
 {
-    try {
-        // Handle the creation of a file/folder
-        String^ fullPath = e->FullPath;
-
-        if (Directory::Exists(fullPath))
-        {
-            enqueueFolderDetected(fullPath, stopWatch->ElapsedMilliseconds);
-
-            auto files = Directory::EnumerateFiles(fullPath, "*", SearchOption::AllDirectories);
-            auto folders = Directory::EnumerateDirectories(fullPath, "*", SearchOption::AllDirectories);
-
-            for each (String ^ folder in folders)
-            {
-                enqueueFolderDetected(folder, stopWatch->ElapsedMilliseconds);
-            }
-
-            for each (String ^ file in files)
-            {
-                enqueueFileDetected(file, stopWatch->ElapsedMilliseconds);
-            }
-        }
-        else if (File::Exists(fullPath))
-        {
-            enqueueFileDetected(fullPath, stopWatch->ElapsedMilliseconds);
-        }
-    }
-    catch (...)
+    if (EventInitiator::FileValidator(path))
     {
-        Console::WriteLine("Exception on OnCreated");
+        path = removeWatchItemPath(path);
+
+        Event^ event = gcnew FileChanged(_stopWatch->ElapsedMilliseconds, path);
+        _eventsQueue->rateLimitedEnqueue(event, 1000);
     }
 }
 
-void FileWatcher::OnDeleted(Object^, FileSystemEventArgs^ e)
+void EventInitiator::enqueueFileOrFolderDeleted(String^ path)
 {
-    String^ path = e->FullPath;
-    try {
-        // Handle the deletion of a file or a folder (both are treated similarly)
-        Console::WriteLine("File/Folder: {0} Deleted", path);
-        String^ path = e->FullPath;
+    path = removeWatchItemPath(path);
+
+    Event^ event = gcnew DeleteItem(_stopWatch->ElapsedMilliseconds, path);
+    _eventsQueue->rateLimitedEnqueue(event, 5000);
+    
+}
+
+void EventInitiator::OnFileOrFolderCreated(Object^ obj, FileSystemEventArgs^ e)
+{
+    EventInitiator^ eventInitiator = (EventInitiator^)obj;
+    
+    String^ fullPath = e->FullPath;
         
-        Event^ event = gcnew Deleted(stopWatch->ElapsedMilliseconds, path);
-        eventsQueue->rateLimitedEnqueue(event, 1000);
-    }
-    catch (...)
+    // Handle the creation of a file/folder        
+
+    if (Directory::Exists(fullPath))
     {
-        Console::WriteLine("Exception on OnDeleted");
+        eventInitiator->enqueueFolderDetected(fullPath);
+
+        auto files = Directory::EnumerateFiles(fullPath, "*", SearchOption::AllDirectories);
+        auto folders = Directory::EnumerateDirectories(fullPath, "*", SearchOption::AllDirectories);
+
+        for each (String ^ folder in folders)
+            eventInitiator->enqueueFolderDetected(folder);
+
+        for each (String ^ file in files)
+            eventInitiator->enqueueFileDetected(file);
     }
+    else if (File::Exists(fullPath))
+        eventInitiator->enqueueFileDetected(fullPath);
 }
 
-void FileWatcher::OnChanged(Object^, FileSystemEventArgs^ e)
+void EventInitiator::OnFileOrFolderDeleted(Object^ obj, FileSystemEventArgs^ e)
 {
-    try {
-        // Handle the change of file contents 
-        String^ path = e->FullPath;
-        if (FileWatcher::FileValidator(path))
-        {
-            Console::WriteLine("File: {0} Changed", path);
-            path = removeRootPath(path);
+    EventInitiator^ eventInitiator = (EventInitiator^)obj;
 
-            Event^ event = gcnew FileChanged(stopWatch->ElapsedMilliseconds, path);
-            eventsQueue->rateLimitedEnqueue(event, 1000);
-        }
-        // Files more than 1MB are ignored
-    }
-    catch (...)
-    {
-        Console::WriteLine("Exception on OnChanged");
-    }
+    eventInitiator->enqueueFileOrFolderDeleted(e->FullPath);    
 }
 
-void FileWatcher::OnRenamed(Object^, RenamedEventArgs^ e)
+void EventInitiator::OnFileOrFolderChanged(Object^ obj, FileSystemEventArgs^ e)
+{
+    EventInitiator^ eventInitiator = (EventInitiator^)obj;
+
+    eventInitiator->enqueueFileChanged(e->FullPath);
+}
+
+void EventInitiator::OnFileOrFolderRenamed(Object^ obj, RenamedEventArgs^ e)
 {
     try {
         // Handle the renaming of a file or a folder (both are treated similarly)
@@ -156,39 +141,47 @@ void FileWatcher::OnRenamed(Object^, RenamedEventArgs^ e)
     }
 }
 
-void FileWatcher::initialize(String^ path, EventsQueue^ queue)
+void EventInitiator::addAllItemsToQueue()
 {
-    eventsQueue = queue;
-    rootPath = path;
-    Event::setRootPath(path);
+    auto files = Directory::EnumerateFiles(Path, "*", SearchOption::AllDirectories);
+    auto folders = Directory::EnumerateDirectories(Path, "*", SearchOption::AllDirectories);
+
+    for each (String ^ folder in folders)
+        enqueueFolderDetected(folder);
+
+    for each (String ^ filePath in files)
+        enqueueFileDetected(filePath);
 }
 
-void FileWatcher::run()
+EventInitiator::EventInitiator(String^ path, EventsQueue^ queue, Stopwatch^ watch)
 {
-    // Initializing value
-    stopWatch = gcnew Stopwatch();
+    _eventsQueue = queue;
 
-    // Create a new FileSystemWatcher and set its properties.
-    FileSystemWatcher^ watcher = gcnew FileSystemWatcher;
-    watcher->Path = rootPath;
+    _stopWatch = watch;
 
-    /* Watch for changes in LastAccess and LastWrite times, and
-        the renaming of files or directories. */
-    watcher->NotifyFilter = static_cast<NotifyFilters>(NotifyFilters::LastAccess |
+    Event::setRootPath(path);
+
+    this->Path = path;
+    
+    // Watch for changes in LastAccess and LastWrite times, and the renaming of files or directories.
+    this->NotifyFilter = static_cast<NotifyFilters>(NotifyFilters::LastAccess |
         NotifyFilters::LastWrite | NotifyFilters::FileName | NotifyFilters::DirectoryName);
 
     // Recursively watch all subdirectories.
-    watcher->IncludeSubdirectories = true;
+    this->IncludeSubdirectories = true;
 
     // Add event handlers.
-    watcher->Changed += gcnew FileSystemEventHandler(FileWatcher::OnChanged);
-    watcher->Created += gcnew FileSystemEventHandler(FileWatcher::OnCreated);
-    watcher->Deleted += gcnew FileSystemEventHandler(FileWatcher::OnDeleted);
-    watcher->Renamed += gcnew RenamedEventHandler(FileWatcher::OnRenamed);
+    this->Changed += gcnew FileSystemEventHandler(EventInitiator::OnFileOrFolderChanged);
+    this->Created += gcnew FileSystemEventHandler(EventInitiator::OnFileOrFolderCreated);
+    this->Deleted += gcnew FileSystemEventHandler(EventInitiator::OnFileOrFolderDeleted);
+    this->Renamed += gcnew RenamedEventHandler(EventInitiator::OnFileOrFolderRenamed);
 
-    // Begin watching.
-    stopWatch->Start();
-    watcher->EnableRaisingEvents = true;
 
-    while (1);
+    addAllItemsToQueue();
 }
+
+void EventInitiator::setActive(Boolean option)
+{
+    this->EnableRaisingEvents = option;
+}
+

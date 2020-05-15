@@ -1,5 +1,6 @@
 #pragma once
-#include "../Socket/SocketHandler.h"
+
+#include "..\Socket\SocketHandler.h"
 
 enum EventType {
     NullEvent = -1,
@@ -9,22 +10,22 @@ enum EventType {
     DeletedEvent,
 };
 
-public ref class Event abstract{
+public ref class Event abstract {
 
 protected:
-    static String^ rootPath = nullptr;
+    static String^ _rootWatchPath = nullptr;
 
     Int64 timeElapsedMSecs;
-    
-    EventType code;    
+
+    EventType code;
 
     explicit Event(EventType eventCode, Int64 timeElapsed);
 
 public:
 
     static void setRootPath(String^ path);
-    
-    EventType getEventCode();    
+
+    EventType getEventCode();
 
     Int64 getTimeElapsed();
 
@@ -32,4 +33,5 @@ public:
 
     virtual bool handleEvent(SocketHandler^) = 0;
 
+    virtual String^ getEventText() = 0;
 };

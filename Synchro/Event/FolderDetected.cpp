@@ -1,4 +1,5 @@
 #include "FolderDetected.h"
+
 using namespace System::IO;
 
 FolderDetected::FolderDetected(Int64 timeElapsed, String^ relPath): Event(FolderDetectedEvent,timeElapsed)
@@ -8,7 +9,7 @@ FolderDetected::FolderDetected(Int64 timeElapsed, String^ relPath): Event(Folder
 
 bool FolderDetected::transmitEvent(SocketHandler^ socket)
 {
-	if (Directory::Exists(rootPath + _relativePath))
+	if (Directory::Exists(_rootWatchPath + _relativePath))
 	{
 		String^ eventDataString = String::Concat(char(FolderDetectedEvent), "|", _relativePath);
 		array<Byte>^ eventData = Text::Encoding::Unicode->GetBytes(eventDataString);
@@ -19,8 +20,8 @@ bool FolderDetected::transmitEvent(SocketHandler^ socket)
 
 bool FolderDetected::handleEvent(SocketHandler^ socket)
 {
-	if (!Directory::Exists(rootPath + _relativePath))
-		Directory::CreateDirectory(rootPath + _relativePath);
+	if (!Directory::Exists(_rootWatchPath + _relativePath))
+		Directory::CreateDirectory(_rootWatchPath + _relativePath);
 	return true;
 }
 
@@ -46,4 +47,9 @@ bool FolderDetected::Equals(Object^ obj)
 			return false;
 		}
 	}
+}
+
+String^ FolderDetected::getEventText()
+{
+	return gcnew String("Folder Detected Event at " + _relativePath);
 }

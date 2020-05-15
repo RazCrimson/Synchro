@@ -1,5 +1,9 @@
 #pragma once
+
+#include "..\pch.h"
+
 #include "Event.h"
+
 #include "..\BloomFilter\BloomFilter.h"
 
 using namespace System::Collections::Generic;
@@ -22,4 +26,6 @@ public:
 	bool handleEvent(SocketHandler^ socket) override;
 
 	bool Equals(Object^ obj) override;
+
+	String^ getEventText() override;
 };

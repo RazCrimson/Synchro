@@ -1,32 +1,28 @@
-#include "Deleted.h"
+#include "DeleteItem.h"
+
 using namespace System::IO;
 
-Deleted::Deleted(Int64 timeElapsed, String^ relPath):Event(DeletedEvent, timeElapsed)
+DeleteItem::DeleteItem(Int64 timeElapsed, String^ relPath):Event(DeletedEvent, timeElapsed)
 {
 	_relativePath = relPath;
 }
 
-bool Deleted::transmitEvent(SocketHandler^ socket)
+bool DeleteItem::transmitEvent(SocketHandler^ socket)
 {
 	String^ eventDataString = String::Concat(char(DeletedEvent), "|", _relativePath);
 	array<Byte>^ eventData = Text::Encoding::Unicode->GetBytes(eventDataString);
 	socket->send(eventData);
 
-	// Waiting for a response
-	array<Byte>^ byteArray = socket->receive();
-	String^ str = Text::Encoding::Unicode->GetString(byteArray);
-
-	if (str == "End")
-		return true;
-	return false;
+	return true;
 }
 
-bool Deleted::handleEvent(SocketHandler^ socket)
+bool DeleteItem::handleEvent(SocketHandler^ socket)
 {
-	String^ fullPath = rootPath + _relativePath;
+	String^ fullPath = _rootWatchPath + _relativePath;
 	if (File::Exists(fullPath))
 	{
 		File::Delete(fullPath);
+		Console::WriteLine("Deleted file for {0}", getEventText());
 	}
 	else if (Directory::Exists(fullPath))
 	{
@@ -39,13 +35,12 @@ bool Deleted::handleEvent(SocketHandler^ socket)
 			Directory::Delete(folder);
 		}
 		Directory::Delete(fullPath);
+		Console::WriteLine("Deleted all files and folders for {0}", getEventText());
 	}
-	array<Byte>^ byteArray = Text::Encoding::Unicode->GetBytes("End");
-	socket->send(byteArray);
 	return false;
 }
 
-bool Deleted::Equals(Object^ obj)
+bool DeleteItem::Equals(Object^ obj)
 {
 	//Check for null and compare run-time types.
 	if (obj == nullptr || !this->GetType()->Equals(obj->GetType()))
@@ -54,7 +49,7 @@ bool Deleted::Equals(Object^ obj)
 	}
 	else {
 		try {
-			Deleted^ temp = (Deleted^)obj;
+			DeleteItem^ temp = (DeleteItem^)obj;
 			if (code == temp->code && _relativePath == temp->_relativePath)
 			{
 				return true;
@@ -69,4 +64,9 @@ bool Deleted::Equals(Object^ obj)
 			return false;
 		}
 	}
+}
+
+String^ DeleteItem::getEventText()
+{
+	return gcnew String("Delete Event at " + _relativePath);
 }

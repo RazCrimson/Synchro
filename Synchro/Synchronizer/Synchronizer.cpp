@@ -5,38 +5,29 @@
 #include "..\Event\FolderDetected.h"
 #include "..\Event\FileDetected.h"
 #include "..\Event\FileChanged.h"
-#include "..\Event\Deleted.h"
+#include "..\Event\DeleteItem.h"
 
-using namespace System::IO;
-using namespace System::Text;
-using namespace System::Threading;
+#include "..\EventsQueue.h"
 
-Synchronizer::Synchronizer(SocketHandler^ socketPtr, EventsQueue^ queue, String^ path)
+using System::Text::Encoding;
+
+Synchronizer::Synchronizer(SocketHandler^ socketPtr, String^ path, Boolean isServer)
 {
     _rootPath = path;
+
     _socket = socketPtr;
-    _eventsQueue = queue;
 
-    ThreadStart^ threadDelegate = gcnew ThreadStart(this, &Synchronizer::synchronize);
-    Thread^ newThread = gcnew Thread(threadDelegate);
-    newThread->Start();
+    _isServer = isServer;
+    
+    _stopWatch = Stopwatch::StartNew();
+    
+    _eventsQueue = gcnew EventsQueue();
+    
+    _eventInitiator = gcnew EventInitiator(_rootPath, _eventsQueue, _stopWatch);
+
 }
 
-void Synchronizer::addAllToQueue(Int64 timeElaspsed)
-{
-    auto files = Directory::EnumerateFiles(_rootPath, "*", SearchOption::AllDirectories);
-    auto folders = Directory::EnumerateDirectories(_rootPath, "*", SearchOption::AllDirectories);
 
-    for each (String ^ folder in folders)
-    {
-        FileWatcher::enqueueFolderDetected(folder, timeElaspsed);
-    }
-
-    for each (String ^ file in files)
-    {
-        FileWatcher::enqueueFileDetected(file, timeElaspsed);
-    }
-}
 
 Event^ Synchronizer::getEventFromString(String^ data, Int64 timeElapsed)
 {
@@ -57,23 +48,28 @@ Event^ Synchronizer::getEventFromString(String^ data, Int64 timeElapsed)
     }
     else if (eventCode == DeletedEvent)
     {
-        event = gcnew Deleted(timeElapsed, data);
+        event = gcnew DeleteItem(timeElapsed, data);
     }
     return event;
 }
 
 void Synchronizer::synchronize()
 {
-    String^ sendString, ^ receivedString;
+
+    String^ sendString, ^ receivedString; 
+    Int64 lastTime = Int64::MaxValue;
     array<Byte>^ byteArray;
     Event^ event;
-    Int64 lastTime = Int64::MaxValue;
+
+    if (!_isServer)
+        _stopWatch->Restart();
+
+    _eventInitiator->setActive(true);
 
     try {
-        bool isServer = 0;
-        addAllToQueue(!isServer * 100);
+        
 
-        if (!isServer)
+        if (!_isServer)
         {
             sendString = gcnew String("Have Event?");
             byteArray = Encoding::Unicode->GetBytes(sendString);
@@ -96,7 +92,7 @@ void Synchronizer::synchronize()
             {
                 event = _eventsQueue->Peek();
                 lastTime = event->getTimeElapsed();
-                sendString = "Event Time|" + lastTime.ToString();
+                sendString = "Event Time|" + lastTime.ToString();                
             }
             else if (receivedString->Contains("Event Time|"))
             {
@@ -108,6 +104,7 @@ void Synchronizer::synchronize()
                 {
                     lastTime = currentEventTime;
                     sendString = gcnew String("Transmit Event");
+                    Console::WriteLine("Found an Event");
                 }
                 else
                 {
@@ -117,8 +114,11 @@ void Synchronizer::synchronize()
             }
             else if (receivedString == "Transmit Event")
             {
+                Console::WriteLine("Sending {0}", event->getEventText());
                 _eventsQueue->dequeue();
                 event->transmitEvent(_socket);
+                Console::WriteLine("Sent Event");
+
                 sendString = gcnew String("Have Event?");
             }
             else if (receivedString->Equals("Ask"))
@@ -133,6 +133,7 @@ void Synchronizer::synchronize()
                 receivedString = Encoding::Unicode->GetString(byteArray);
 
                 event = getEventFromString(receivedString, lastTime);
+                Console::WriteLine("Receiving {0}", event->getEventText());
                 event->handleEvent(_socket);
 
                 auto Node = _eventsQueue->FindLast(event);
@@ -149,6 +150,11 @@ void Synchronizer::synchronize()
         {
             
         }
+        catch (System::Net::Sockets::SocketException^ e)
+        {
+            Console::WriteLine("It seems that the connection was terminated :(");
+            return;
+        }
         catch (SystemException^ e)
         {
             Console::WriteLine("System Exception: {0}", e->ToString());
@@ -162,6 +168,6 @@ void Synchronizer::synchronize()
         byteArray = Encoding::Unicode->GetBytes(sendString);
         _socket->send(byteArray);
         lastTime = Int64::MaxValue;
-        Threading::Thread::Sleep(2000);
+        Threading::Thread::Sleep(500);
     }
 }
